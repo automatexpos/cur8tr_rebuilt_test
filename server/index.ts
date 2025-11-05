@@ -3,7 +3,6 @@ import 'dotenv/config';
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
@@ -42,7 +41,7 @@ app.use((req, res, next) => {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      log(logLine);
+      console.log(logLine);
     }
   });
 
@@ -64,20 +63,31 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
+    const { setupVite, log } = await import("./vite");
     await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-
-  // Only start the server if not running in Vercel serverless environment
-  if (process.env.VERCEL !== '1') {
-    const port = parseInt(process.env.PORT || '5000', 10);
-    const host = process.env.HOST || "0.0.0.0";
     
-    // Note: reusePort is only supported on Linux, not Windows or macOS
-    server.listen(port, host, () => {
-      log(`serving on port ${port}`);
-    });
+    // Only start the server if not running in Vercel serverless environment
+    if (process.env.VERCEL !== '1') {
+      const port = parseInt(process.env.PORT || '5000', 10);
+      const host = process.env.HOST || "0.0.0.0";
+      
+      server.listen(port, host, () => {
+        log(`serving on port ${port}`);
+      });
+    }
+  } else {
+    const { serveStatic } = await import("./vite");
+    serveStatic(app);
+    
+    // Only start the server if not running in Vercel serverless environment
+    if (process.env.VERCEL !== '1') {
+      const port = parseInt(process.env.PORT || '5000', 10);
+      const host = process.env.HOST || "0.0.0.0";
+      
+      server.listen(port, host, () => {
+        console.log(`serving on port ${port}`);
+      });
+    }
   }
 })();
 

@@ -55,6 +55,10 @@ tsbuildinfo
 .turbo
 *.local
 
+# Development-only server files (Vite dev server, not needed in production)
+dist/vite.js
+client/vite.config.ts
+
 # Documentation
 docs
 examples
