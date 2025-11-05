@@ -2,8 +2,24 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { fileURLToPath } from "url";
+import { dirname } from "path";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Robust dirname resolution for different environments
+function getDirname() {
+  try {
+    // Try import.meta.dirname first (Node 20.11+)
+    if (typeof import.meta.dirname !== 'undefined') {
+      return import.meta.dirname;
+    }
+    // Fall back to computing from import.meta.url
+    return dirname(fileURLToPath(import.meta.url));
+  } catch {
+    // Last resort: use process.cwd() + 'client' for Vercel build environment
+    return path.join(process.cwd(), 'client');
+  }
+}
+
+const __dirname = getDirname();
 
 export default defineConfig({
   plugins: [

@@ -55,9 +55,9 @@ tsbuildinfo
 .turbo
 *.local
 
-# Development-only server files (Vite dev server, not needed in production)
-dist/vite.js
-client/vite.config.ts
+# Development-only server files (Vite dev server, not needed in production after build)
+# Note: dist/vite.js and client/ are needed during build, but can be ignored after
+# Vercel handles this automatically with buildOutput configuration
 
 # Documentation
 docs
