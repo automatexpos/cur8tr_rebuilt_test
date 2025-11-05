@@ -49,11 +49,11 @@ export const supabase = createClient(
 // URL format: https://xxxxxxxxxxxxx.supabase.co
 const projectRef = supabaseUrl.replace('https://', '').replace('http://', '').replace('.supabase.co', '');
 
-// For Vercel/serverless environments, use Supabase's connection pooler
-// Project region: AWS ap-southeast-2 (Sydney, Australia)
-// Pooler endpoint: aws-0-ap-southeast-2.pooler.supabase.com:6543
+// For Vercel/serverless environments, use Supabase's transaction pooler
+// Transaction pooler: postgres.PROJECT_REF @ aws-1-ap-southeast-2.pooler.supabase.com:6543
+// Direct connection: postgres @ db.PROJECT_REF.supabase.co:5432
 const connectionString = process.env.DATABASE_URL || 
-  `postgresql://postgres.${projectRef}:${supabasePassword}@aws-0-ap-southeast-2.pooler.supabase.com:6543/postgres`;
+  `postgresql://postgres.${projectRef}:${supabasePassword}@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres`;
 
 console.log('[DB] Connecting to database...');
 console.log('[DB] Connection string format:', connectionString.replace(/:[^:@]+@/, ':****@'));
