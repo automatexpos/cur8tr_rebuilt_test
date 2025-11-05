@@ -49,17 +49,22 @@ export const supabase = createClient(
 // URL format: https://xxxxxxxxxxxxx.supabase.co
 const projectRef = supabaseUrl.replace('https://', '').replace('http://', '').replace('.supabase.co', '');
 
-// For Vercel/serverless environments, use Supabase's connection pooler (Supavisor)
-// Pooler format: postgresql://postgres.[ref]:[password]@aws-0-us-east-1.pooler.supabase.com:6543/postgres
-// Direct DB format: postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres
+// For Vercel/serverless environments, use Supabase's connection pooler
+// If DATABASE_URL is not set, try the legacy PgBouncer format first (more compatible)
+// Legacy format: postgresql://postgres:[password]@db.[ref].supabase.co:6543/postgres
+// New format: postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
 const connectionString = process.env.DATABASE_URL || 
-  `postgresql://postgres.${projectRef}:${supabasePassword}@aws-0-us-east-1.pooler.supabase.com:6543/postgres`;
+  `postgresql://postgres:${supabasePassword}@db.${projectRef}.supabase.co:6543/postgres`;
+
+console.log('[DB] Connecting to database...');
+console.log('[DB] Connection string format:', connectionString.replace(/:[^:@]+@/, ':****@'));
 
 const client = postgres(connectionString, { 
   ssl: 'require',
   max: 1, // Use minimal connections for serverless
   idle_timeout: 20,
   connect_timeout: 30,
+  onnotice: () => {}, // Suppress notices
 });
 
 export const db = drizzle(client, { schema });
