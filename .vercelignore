@@ -49,9 +49,6 @@ tsbuildinfo
 !DEPLOYMENT.md
 !README.md
 
-# Source files (already built)
-client/src
-server
 
 # Build artifacts not needed
 .cache
