@@ -29,9 +29,6 @@ export default defineConfig({
       },
     },
     rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, "client", "index.html"),
-      },
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom'],
