@@ -1,0 +1,12 @@
+# Production robots.txt for CUR8tr
+# Allow all crawlers
+
+User-agent: *
+Allow: /
+
+# Disallow admin and API routes from indexing
+Disallow: /api/
+Disallow: /admin
+
+# Sitemap (update with your actual domain)
+# Sitemap: https://yourdomain.vercel.app/sitemap.xml

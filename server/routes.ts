@@ -45,6 +45,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // ===== HEALTH CHECK ENDPOINT =====
+  app.get('/api/health', (_req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      version: process.env.npm_package_version || '1.0.0'
+    });
+  });
+
   // ===== AUTH ROUTES =====
   
   // Register new user

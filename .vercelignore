@@ -1,0 +1,70 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__
+__mocks__
+
+# Development
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment files (configure in Vercel dashboard)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+tsbuildinfo
+
+# Development files
+.git
+.gitignore
+.eslintrc
+.prettierrc
+*.md
+!DEPLOYMENT.md
+!README.md
+
+# Source files (already built)
+client/src
+server
+
+# Build artifacts not needed
+.cache
+.turbo
+*.local
+
+# Documentation
+docs
+examples
+attached_assets
+
+# Replit specific
+.replit
+replit.nix
+replit.md
+.config
