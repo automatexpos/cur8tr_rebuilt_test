@@ -3,6 +3,8 @@ import 'dotenv/config';
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import path from "path";
+import fs from "fs";
 
 const app = express();
 
@@ -63,7 +65,7 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
-    const { setupVite, log } = await import("./vite");
+    const { setupVite, log } = await import("./vite.js");
     await setupVite(app, server);
     
     // Only start the server if not running in Vercel serverless environment
@@ -76,8 +78,21 @@ app.use((req, res, next) => {
       });
     }
   } else {
-    const { serveStatic } = await import("./vite");
-    serveStatic(app);
+    // Serve static files in production
+    const distPath = path.resolve(import.meta.dirname, "public");
+
+    if (!fs.existsSync(distPath)) {
+      throw new Error(
+        `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      );
+    }
+
+    app.use(express.static(distPath));
+
+    // Fall through to index.html if the file doesn't exist (SPA fallback)
+    app.use("*", (_req, res) => {
+      res.sendFile(path.resolve(distPath, "index.html"));
+    });
     
     // Only start the server if not running in Vercel serverless environment
     if (process.env.VERCEL !== '1') {
