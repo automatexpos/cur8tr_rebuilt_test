@@ -38,16 +38,17 @@ export const supabase = createClient(
 // URL format: https://xxxxxxxxxxxxx.supabase.co
 const projectRef = process.env.SUPABASE_URL.replace('https://', '').replace('.supabase.co', '');
 
-// Create direct PostgreSQL connection for Drizzle ORM (more reliable than pooler)
-// Connection format: postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres
+// For Vercel/serverless environments, use Supabase's connection pooler (Supavisor)
+// Pooler format: postgresql://postgres.[ref]:[password]@aws-0-us-east-1.pooler.supabase.com:6543/postgres
+// Direct DB format: postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres
 const connectionString = process.env.DATABASE_URL || 
-  `postgresql://postgres:${process.env.SUPABASE_DB_PASSWORD}@db.${projectRef}.supabase.co:5432/postgres`;
+  `postgresql://postgres.${projectRef}:${process.env.SUPABASE_DB_PASSWORD}@aws-0-us-east-1.pooler.supabase.com:6543/postgres`;
 
 const client = postgres(connectionString, { 
   ssl: 'require',
-  max: 10,
+  max: 1, // Use minimal connections for serverless
   idle_timeout: 20,
-  connect_timeout: 10,
+  connect_timeout: 30,
 });
 
 export const db = drizzle(client, { schema });

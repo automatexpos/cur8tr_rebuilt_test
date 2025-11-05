@@ -33,18 +33,27 @@
 
 ### DATABASE_URL Format
 
+**IMPORTANT: For Vercel/Serverless deployments, use the Supabase Pooler (Supavisor)**
+
 ```
-postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT_REF.supabase.co:5432/postgres
+postgresql://postgres.YOUR_PROJECT_REF:YOUR_PASSWORD@aws-0-us-east-1.pooler.supabase.com:6543/postgres
 ```
 
 **Example:**
 ```
-postgresql://postgres:helloworld@db.nagsbnmeftxqfuzjabun.supabase.co:5432/postgres
+postgresql://postgres.nagsbnmeftxqfuzjabun:helloworld@aws-0-us-east-1.pooler.supabase.com:6543/postgres
 ```
 
 Replace:
-- `YOUR_PASSWORD` with your `SUPABASE_DB_PASSWORD`
 - `YOUR_PROJECT_REF` with your project reference (from your `SUPABASE_URL`)
+- `YOUR_PASSWORD` with your `SUPABASE_DB_PASSWORD`
+
+**Note:** The pooler endpoint may vary based on your Supabase region:
+- US East: `aws-0-us-east-1.pooler.supabase.com:6543`
+- EU West: `aws-0-eu-west-1.pooler.supabase.com:6543`
+- Asia Pacific: `aws-0-ap-southeast-1.pooler.supabase.com:6543`
+
+Check your region in Supabase Dashboard → Settings → Database → Connection pooling
 
 ## Step 3: Deploy to Vercel
 
