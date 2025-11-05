@@ -15,11 +15,12 @@ export default defineConfig({
       "@shared": path.resolve(__dirname, "shared"),
       "@assets": path.resolve(__dirname, "attached_assets"),
     },
+    extensions: ['.tsx', '.ts', '.jsx', '.js', '.json']
   },
   root: path.resolve(__dirname, "client"),
   base: "/",
   build: {
-    outDir: "../dist/public",
+    outDir: path.resolve(__dirname, "dist", "public"),
     emptyOutDir: true,
     sourcemap: false,
     minify: 'terser',
