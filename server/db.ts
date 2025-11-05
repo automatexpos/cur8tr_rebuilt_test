@@ -3,67 +3,43 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from "@shared/schema";
 
-// Check for required environment variables
 const supabaseUrl = process.env.SUPABASE_URL?.trim();
 const supabaseKey = process.env.SUPABASE_KEY?.trim();
 const supabasePassword = process.env.SUPABASE_DB_PASSWORD?.trim();
 
-if (!supabaseUrl) {
-  throw new Error(
-    "SUPABASE_URL must be set. Did you forget to add it to Vercel environment variables?",
-  );
+if (!supabaseUrl || !supabaseKey || !supabasePassword) {
+  throw new Error("Missing required Supabase environment variables: SUPABASE_URL, SUPABASE_KEY, SUPABASE_DB_PASSWORD");
 }
 
-// Validate URL format
-if (!supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) {
-  throw new Error(
-    `SUPABASE_URL must be a valid HTTP/HTTPS URL. Got: ${supabaseUrl}`,
-  );
-}
-
-if (!supabaseKey) {
-  throw new Error(
-    "SUPABASE_KEY must be set. Did you forget to add it to Vercel environment variables?",
-  );
-}
-
-if (!supabasePassword) {
-  throw new Error(
-    "SUPABASE_DB_PASSWORD must be set. Did you forget to add it to Vercel environment variables?",
-  );
-}
-
-// Create Supabase client (for auth, storage, and other Supabase features)
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
+// Initialize Supabase client for storage and auth
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: { 
+    autoRefreshToken: false, 
+    persistSession: false 
   }
-);
+});
 
+// Build connection string for Drizzle
 // Extract project reference from Supabase URL
-// URL format: https://xxxxxxxxxxxxx.supabase.co
-const projectRef = supabaseUrl.replace('https://', '').replace('http://', '').replace('.supabase.co', '');
+const projectRef = supabaseUrl
+  .replace('https://', '')
+  .replace('http://', '')
+  .replace('.supabase.co', '');
 
-// For Vercel/serverless environments, use Supabase's transaction pooler
-// Transaction pooler: postgres.PROJECT_REF @ aws-1-ap-southeast-2.pooler.supabase.com:6543
-// Direct connection: postgres @ db.PROJECT_REF.supabase.co:5432
+// Use DATABASE_URL if provided, otherwise construct from Supabase credentials
+// NOTE: Update YOUR_REGION with your actual Supabase region (e.g., ap-southeast-2, us-east-1, eu-west-1)
 const connectionString = process.env.DATABASE_URL || 
   `postgresql://postgres.${projectRef}:${supabasePassword}@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres`;
 
-console.log('[DB] Connecting to database...');
-console.log('[DB] Connection string format:', connectionString.replace(/:[^:@]+@/, ':****@'));
+console.log('[DB] Connecting to:', connectionString.replace(/:[^:@]+@/, ':****@'));
 
-const client = postgres(connectionString, { 
+// Create PostgreSQL client with connection pooling optimized for serverless
+const client = postgres(connectionString, {
   ssl: 'require',
-  max: 1, // Use minimal connections for serverless
-  idle_timeout: 20,
-  connect_timeout: 30,
-  onnotice: () => {}, // Suppress notices
+  max: 1,
+  idle_timeout: 60, // Allow queries up to 60 seconds (for bcrypt operations)
+  connect_timeout: 10,
+  onnotice: () => {} // Suppress notices
 });
 
 export const db = drizzle(client, { schema });

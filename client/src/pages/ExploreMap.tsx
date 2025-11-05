@@ -3,7 +3,6 @@ import SectionHeader from "@/components/SectionHeader";
 import LocationMap from "@/components/LocationMap";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { logout } from "@/lib/authUtils";
 
 export default function ExploreMap() {
   const { user } = useAuth();
@@ -11,10 +10,6 @@ export default function ExploreMap() {
 
   const handleLogin = () => {
     window.location.href = '/api/login';
-  };
-
-  const handleLogout = () => {
-    logout();
   };
 
   const handleCreateRec = () => {
@@ -39,7 +34,6 @@ export default function ExploreMap() {
         isLoggedIn={!!user}
         isAdmin={user?.isAdmin || false}
         onLogin={handleLogin}
-        onLogout={handleLogout}
         onSearch={() => console.log('Search')}
         onProfile={handleProfile}
         onCreateRec={handleCreateRec}

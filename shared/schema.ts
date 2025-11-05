@@ -26,11 +26,14 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// ===== USERS TABLE =====
+// ===== USERS TABLE (Email/password auth with verification codes) =====
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique().notNull(),
-  password: varchar("password"), // Hashed password
+  email: varchar("email").unique(),
+  password: varchar("password"), // Hashed password (nullable for migration from Replit Auth)
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  verificationCode: varchar("verification_code", { length: 6 }), // 6-digit code
+  verificationCodeExpiry: timestamp("verification_code_expiry"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -85,6 +88,7 @@ export const recommendations = pgTable("recommendations", {
   latitude: real("latitude"),
   longitude: real("longitude"),
   externalUrl: text("external_url"),
+  isPrivate: boolean("is_private").default(false).notNull(), // Public by default
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -388,6 +392,38 @@ export const updateProfileSchema = z.object({
 });
 
 export type UpdateProfile = z.infer<typeof updateProfileSchema>;
+
+// Registration schema (for new user signup)
+export const registerUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+});
+
+export type RegisterUser = z.infer<typeof registerUserSchema>;
+
+// Login schema
+export const loginUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string(),
+});
+
+export type LoginUser = z.infer<typeof loginUserSchema>;
+
+// Email verification schema
+export const verifyEmailSchema = z.object({
+  email: z.string().email(),
+  code: z.string().length(6, "Verification code must be 6 digits"),
+});
+
+export type VerifyEmail = z.infer<typeof verifyEmailSchema>;
+
+// Resend verification code schema
+export const resendCodeSchema = z.object({
+  email: z.string().email(),
+});
+
+export type ResendCode = z.infer<typeof resendCodeSchema>;
 
 // Create category schema
 export const createCategorySchema = z.object({

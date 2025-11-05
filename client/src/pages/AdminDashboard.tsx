@@ -2,7 +2,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Upload, Eye, EyeOff, Pencil, Trash2, ExternalLink } from "lucide-react";
-import { logout } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,10 +38,6 @@ export default function AdminDashboard() {
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-
-  const handleLogout = () => {
-    logout();
-  };
 
   const { data: user } = useQuery<{ isAdmin: boolean }>({
     queryKey: ['/api/auth/user'],
@@ -221,7 +216,6 @@ export default function AdminDashboard() {
       <>
         <Navigation 
           isLoggedIn={true}
-          onLogout={handleLogout}
           onCreateRec={() => navigate("/create")}
           onProfile={() => navigate("/profile/" + user)}
         />
@@ -241,7 +235,6 @@ export default function AdminDashboard() {
     <>
       <Navigation 
         isLoggedIn={true}
-        onLogout={handleLogout}
         onCreateRec={() => navigate("/create")}
         onProfile={() => navigate("/dashboard")}
       />

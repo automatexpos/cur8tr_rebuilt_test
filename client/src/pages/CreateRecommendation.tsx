@@ -3,7 +3,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { ArrowLeft, Star, Upload, Image as ImageIcon } from "lucide-react";
-import { logout } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,6 +56,7 @@ export default function CreateRecommendation() {
       categoryId: undefined,
       location: undefined,
       externalUrl: undefined,
+      isPrivate: false,
     },
   });
 
@@ -465,6 +465,28 @@ export default function CreateRecommendation() {
                       Optional: Share an insider tip or helpful advice for others
                     </FormDescription>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="isPrivate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border-4 border-foreground p-6 bg-card">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-lg font-bold">Private Recommendation</FormLabel>
+                      <FormDescription>
+                        Only you can see private recommendations
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-private"
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />

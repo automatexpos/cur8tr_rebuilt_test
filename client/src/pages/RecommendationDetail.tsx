@@ -2,16 +2,17 @@ import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import Navigation from "@/components/Navigation";
-import { logout } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Heart, MapPin, Star, ExternalLink, ArrowLeft, MessageCircle } from "lucide-react";
+import { Heart, MapPin, Star, ExternalLink, ArrowLeft, MessageCircle, Edit, Trash2 } from "lucide-react";
 import type { Recommendation, User, Category, Comment as CommentType } from "@shared/schema";
 import Comment from "@/components/Comment";
 import CommentForm from "@/components/CommentForm";
 import ShareButton from "@/components/ShareButton";
+import EditRecommendationDialog from "@/components/EditRecommendationDialog";
 import { useState } from "react";
 
 type RecommendationWithDetails = Recommendation & {
@@ -31,6 +32,8 @@ export default function RecommendationDetail() {
   const { toast } = useToast();
   const recId = params?.id;
   const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Fetch current user
   const { data: currentUser } = useQuery<User>({
@@ -59,10 +62,6 @@ export default function RecommendationDetail() {
 
   // Check if current user is the recommender
   const isRecommender = currentUser && recommendation && currentUser.id === recommendation.userId;
-
-  const handleLogout = () => {
-    logout();
-  };
 
   const handleAdmin = () => {
     navigate('/admin');
@@ -127,13 +126,33 @@ export default function RecommendationDetail() {
     },
   });
 
+  // Delete recommendation mutation
+  const deleteRecommendationMutation = useMutation({
+    mutationFn: () => apiRequest('DELETE', `/api/recommendations/${recId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/recommendations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/activity-feed'] });
+      toast({
+        title: "Deleted",
+        description: "Your recommendation has been deleted.",
+      });
+      navigate('/explore');
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete recommendation",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation 
           isLoggedIn={!!currentUser}
           isAdmin={currentUser?.isAdmin || false}
-          onLogout={handleLogout}
           onCreateRec={() => navigate('/create')}
           onAdmin={handleAdmin}
         />
@@ -184,13 +203,14 @@ export default function RecommendationDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-        <Navigation
-          isLoggedIn={!!currentUser}
-          isAdmin={currentUser?.isAdmin || false}
-          onLogout={handleLogout}
-          onCreateRec={() => navigate('/create')}
-          onAdmin={handleAdmin}
-        />      <main className="container mx-auto px-4 py-6 md:py-8 max-w-4xl">
+      <Navigation 
+        isLoggedIn={!!currentUser}
+        isAdmin={currentUser?.isAdmin || false}
+        onCreateRec={() => navigate('/create')}
+        onAdmin={handleAdmin}
+      />
+      
+      <main className="container mx-auto px-4 py-6 md:py-8 max-w-4xl">
         {/* Back Button */}
         <Button
           variant="outline"
@@ -360,7 +380,28 @@ export default function RecommendationDetail() {
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-6 border-t-2 border-foreground">
+            <div className="flex gap-3 pt-6 border-t-2 border-foreground flex-wrap">
+              {isRecommender && (
+                <>
+                  <Button
+                    onClick={() => setShowEditDialog(true)}
+                    className="border-2"
+                    data-testid="button-edit-recommendation"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="border-2"
+                    data-testid="button-delete-recommendation"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                </>
+              )}
               <Button
                 onClick={() => navigate(`/profile/${recommendation.user.username}`)}
                 className="border-2"
@@ -456,6 +497,47 @@ export default function RecommendationDetail() {
           </div>
         </div>
       </main>
+
+      {/* Edit Dialog */}
+      {recommendation && (
+        <EditRecommendationDialog
+          recommendation={recommendation}
+          open={showEditDialog}
+          onOpenChange={setShowEditDialog}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent data-testid="dialog-delete-recommendation">
+          <DialogHeader>
+            <DialogTitle>Delete Recommendation?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete your recommendation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                deleteRecommendationMutation.mutate();
+                setShowDeleteDialog(false);
+              }}
+              disabled={deleteRecommendationMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              {deleteRecommendationMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

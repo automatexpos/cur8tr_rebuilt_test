@@ -50,41 +50,43 @@ export default function Hero({ onSignUp, onLogin, onExplore, isLoggedIn = false 
           Join a community of curators sharing their favorite books, places, products, and experiences
         </p>
 
-        {!isLoggedIn && (
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button
-              size="lg"
-              onClick={onSignUp}
-              className="border-4 font-bold text-lg px-8 py-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all"
-              data-testid="button-hero-signup"
-            >
-              <Sparkles className="w-5 h-5 mr-2" />
-              Create Account
-            </Button>
-            
-            <Button
-              size="lg"
-              variant="secondary"
-              onClick={onLogin}
-              className="border-2 font-medium text-lg px-8 py-6"
-              data-testid="button-hero-login"
-            >
-              <LogIn className="w-5 h-5 mr-2" />
-              Sign In
-            </Button>
-            
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={onExplore}
-              className="border-2 font-medium text-lg px-8 py-6"
-              data-testid="button-hero-explore"
-            >
-              <Compass className="w-5 h-5 mr-2" />
-              Explore Recs
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          {!isLoggedIn && (
+            <>
+              <Button
+                size="lg"
+                onClick={onSignUp}
+                className="border-4 font-bold text-lg px-8 py-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all"
+                data-testid="button-hero-signup"
+              >
+                <Sparkles className="w-5 h-5 mr-2" />
+                Create Account
+              </Button>
+              
+              <Button
+                size="lg"
+                variant="secondary"
+                onClick={onLogin}
+                className="border-2 font-medium text-lg px-8 py-6"
+                data-testid="button-hero-login"
+              >
+                <LogIn className="w-5 h-5 mr-2" />
+                Sign In
+              </Button>
+            </>
+          )}
+          
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={onExplore}
+            className="border-2 font-medium text-lg px-8 py-6"
+            data-testid="button-hero-explore"
+          >
+            <Compass className="w-5 h-5 mr-2" />
+            Explore Recs
+          </Button>
+        </div>
 
         <div className="mt-16 flex flex-wrap justify-center gap-8 text-sm">
           <div className="text-center">

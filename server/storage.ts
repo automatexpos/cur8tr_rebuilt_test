@@ -35,11 +35,10 @@ import {
 import { db } from "./db";
 import { eq, and, desc, sql, or, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
 
-// Storage interface
+// Storage interface - following Replit Auth blueprint requirements
 export interface IStorage {
-  // User operations
+  // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   getUserByUsername(username: string): Promise<User | undefined>;
   updateUserProfile(id: string, data: Partial<User>): Promise<User>;
@@ -55,9 +54,10 @@ export interface IStorage {
     categoryId?: string; 
     hasProTip?: boolean;
     limit?: number;
+    currentUserId?: string; // For filtering private recommendations
   }): Promise<Recommendation[]>;
   getRecommendation(id: string): Promise<Recommendation | undefined>;
-  getRecommendationsInRadius(latitude: number, longitude: number, radiusMiles: number): Promise<Recommendation[]>;
+  getRecommendationsInRadius(latitude: number, longitude: number, radiusMiles: number, currentUserId?: string): Promise<Recommendation[]>;
   createRecommendation(rec: InsertRecommendation, userId: string, tagNames?: string[]): Promise<Recommendation>;
   updateRecommendation(id: string, rec: Partial<InsertRecommendation>): Promise<Recommendation>;
   deleteRecommendation(id: string): Promise<void>;
@@ -186,11 +186,6 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user;
-  }
-
   async updateUserProfile(id: string, data: Partial<User>): Promise<User> {
     const [user] = await db
       .update(users)
@@ -254,6 +249,7 @@ export class DatabaseStorage implements IStorage {
     categoryId?: string; 
     hasProTip?: boolean;
     limit?: number;
+    currentUserId?: string; // For filtering private recommendations
   }): Promise<Recommendation[]> {
     let query = db.select().from(recommendations);
     
@@ -268,6 +264,19 @@ export class DatabaseStorage implements IStorage {
       // If hasProTip is true, filter for recommendations where proTip is not null
       // If hasProTip is false, filter for recommendations where proTip is null
       conditions.push(filters.hasProTip ? isNotNull(recommendations.proTip) : isNull(recommendations.proTip));
+    }
+    
+    // Visibility filter: show public recommendations, or private ones owned by current user
+    if (filters?.currentUserId) {
+      conditions.push(
+        or(
+          eq(recommendations.isPrivate, false),
+          eq(recommendations.userId, filters.currentUserId)
+        )!
+      );
+    } else {
+      // If no current user, only show public recommendations
+      conditions.push(eq(recommendations.isPrivate, false));
     }
     
     if (conditions.length > 0) {
@@ -294,9 +303,18 @@ export class DatabaseStorage implements IStorage {
   async getRecommendationsInRadius(
     latitude: number,
     longitude: number,
-    radiusMiles: number
+    radiusMiles: number,
+    currentUserId?: string
   ): Promise<Recommendation[]> {
     const { calculateDistance } = await import('./utils/distance.js');
+    
+    // Build visibility filter
+    const visibilityCondition = currentUserId
+      ? or(
+          eq(recommendations.isPrivate, false),
+          eq(recommendations.userId, currentUserId)
+        )!
+      : eq(recommendations.isPrivate, false);
     
     const allRecs = await db
       .select()
@@ -304,7 +322,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           isNotNull(recommendations.latitude),
-          isNotNull(recommendations.longitude)
+          isNotNull(recommendations.longitude),
+          visibilityCondition
         )
       )
       .orderBy(desc(recommendations.createdAt));
@@ -594,7 +613,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getFeaturedUsers(limit: number = 10): Promise<Array<User & { recommendationsCount: number; followersCount: number }>> {
+  async getFeaturedUsers(limit: number = 3): Promise<Array<User & { recommendationsCount: number; followersCount: number }>> {
     const usersWithStats = await db
       .select({
         user: users,
@@ -605,7 +624,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(recommendations, eq(recommendations.userId, users.id))
       .leftJoin(follows, eq(follows.followingId, users.id))
       .groupBy(users.id)
-      .orderBy(sql`count(distinct ${follows.followerId}) desc`)
+      .orderBy(desc(users.createdAt))
       .limit(limit);
     
     return usersWithStats.map((row) => ({

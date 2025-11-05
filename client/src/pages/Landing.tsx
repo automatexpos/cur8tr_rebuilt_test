@@ -7,7 +7,6 @@ import RecommendationCard from "@/components/RecommendationCard";
 import UserCard from "@/components/UserCard";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/hooks/useAuth";
-import { logout } from "@/lib/authUtils";
 import type { Recommendation, FeaturedUser, AdminRecommend } from "@shared/schema";
 
 export default function Landing() {
@@ -71,10 +70,6 @@ export default function Landing() {
     navigate('/admin');
   };
 
-  const handleLogout = () => {
-    logout();
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <Navigation
@@ -85,14 +80,13 @@ export default function Landing() {
         onProfile={handleProfile}
         onCreateRec={handleCreateRec}
         onAdmin={handleAdmin}
-        onLogout={handleLogout}
       />
 
       <Hero
-        isLoggedIn={!!user}
         onSignUp={handleSignUp}
         onLogin={handleLogin}
         onExplore={handleExplore}
+        isLoggedIn={!!user}
       />
 
       <main className="max-w-7xl mx-auto px-4 md:px-6">

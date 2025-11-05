@@ -17,9 +17,9 @@ The platform employs a neo-brutalist aesthetic characterized by thick borders, 3
 - **RecommendationCard component**: Uses explicit `isAdminCard` boolean prop to determine card type and styling
 
 ### Technical Implementations
-- **Authentication**: Replit Auth with OIDC integration.
-- **User Profiles**: Include bio, stats (recommendations, followers, following), QR code generation, and social media links. Avatar upload is integrated with object storage.
-- **Recommendations**: Users can create, browse, filter, and search recommendations. Features include star ratings, image uploads, location tagging, external URLs, and a "Pro Tip" text field.
+- **Authentication**: Email/password authentication with email verification codes. Users register with email, password, and username. A 6-digit verification code is sent to their email (expires in 10 minutes). Uses passport-local strategy with bcrypt for password hashing. Sessions are stored in PostgreSQL. Email service is configurable (supports Resend, SendGrid, Gmail, Outlook, or custom SMTP).
+- **User Profiles**: Include bio, stats (recommendations, followers, following), QR code generation, and social media links. Avatar upload is integrated with object storage. The edit profile dialog features a scrollable layout with compact avatar preview to ensure all form controls (Save/Cancel buttons) are accessible.
+- **Recommendations**: Users can create, browse, filter, and search recommendations. Features include star ratings, image uploads, location tagging, external URLs, and a "Pro Tip" text field. Users can edit and delete their own recommendations. Public/private visibility controls allow users to create private recommendations that only they can see.
 - **Social Features**: Follow/unfollow users, like/unlike recommendations with real-time updates, and an activity feed displaying a mix of followed users' and community recommendations. Share functionality allows users to share recommendations via multiple channels (SMS, WhatsApp, Facebook, Twitter) or copy the link directly. Uses Web Share API on mobile devices for native sharing, with custom popover menu on desktop. Share buttons appear on recommendation cards (bottom-right of image) and detail pages.
 - **Commenting System**: Comprehensive commenting with nested replies, allowing recommenders to reply to comments.
 - **Category Management**: Users can create and delete custom categories from their profile page, OR create custom categories inline while creating a recommendation (via radio toggle between "Select existing" and "Create new" with automatic save for future use). Admins can curate "CUR8tr Recommendations" with an 8-item limit displayed on the landing page and a dedicated page.
@@ -43,7 +43,9 @@ The platform employs a neo-brutalist aesthetic characterized by thick borders, 3
 ## External Dependencies
 - **Database**: PostgreSQL
 - **ORM**: Drizzle ORM
-- **Authentication**: Replit Auth (OIDC)
+- **Authentication**: Passport.js with local strategy (email/password)
+- **Password Hashing**: bcrypt
+- **Email Service**: Nodemailer (supports Resend, SendGrid, Gmail, Outlook, custom SMTP). Note: Email service credentials must be configured via environment variables (RESEND_API_KEY, SENDGRID_API_KEY, EMAIL_USER + EMAIL_PASSWORD, or SMTP_HOST + SMTP_PORT)
 - **Object Storage**: Replit's built-in object storage (Google Cloud Storage backend)
 - **Geocoding**: OpenStreetMap Nominatim API (free, no API key required)
 - **UI Components**: Shadcn/ui

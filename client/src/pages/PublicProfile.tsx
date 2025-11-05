@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Navigation from "@/components/Navigation";
-import { logout } from "@/lib/authUtils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -155,10 +154,20 @@ export default function PublicProfile() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: UpdateProfile) => {
-      const response = await apiRequest('PATCH', '/api/user/profile', data);
-      return await response.json() as User;
+      console.log('[updateProfile] Starting mutation with data:', data);
+      try {
+        const response = await apiRequest('PATCH', '/api/user/profile', data);
+        console.log('[updateProfile] Response received:', response.status);
+        const result = await response.json() as User;
+        console.log('[updateProfile] Parsed result:', result);
+        return result;
+      } catch (error) {
+        console.error('[updateProfile] Error in mutationFn:', error);
+        throw error;
+      }
     },
     onSuccess: async (updatedUser: User) => {
+      console.log('[updateProfile] onSuccess called');
       await queryClient.invalidateQueries({ queryKey: ['/api/user', username] });
       await queryClient.invalidateQueries({ queryKey: ['/api/user', updatedUser.username] });
       await queryClient.invalidateQueries({ queryKey: ['/api/user', profileUser?.id, 'stats'] });
@@ -171,10 +180,11 @@ export default function PublicProfile() {
         navigate(`/profile/${updatedUser.username}`);
       }
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('[updateProfile] onError called:', error);
       toast({
         title: "Error",
-        description: "Failed to update profile",
+        description: error?.message || "Failed to update profile",
         variant: "destructive",
       });
     },
@@ -253,10 +263,6 @@ export default function PublicProfile() {
 
   const handleLogin = () => {
     window.location.href = '/api/login';
-  };
-
-  const handleLogout = () => {
-    logout();
   };
 
   const handleSearch = () => {
@@ -357,7 +363,10 @@ export default function PublicProfile() {
   };
 
   const handleSaveProfile = (data: UpdateProfile) => {
+    console.log('[handleSaveProfile] Called with data:', data);
+    console.log('[handleSaveProfile] Mutation isPending:', updateProfileMutation.isPending);
     updateProfileMutation.mutate(data);
+    console.log('[handleSaveProfile] Mutation triggered');
   };
 
   // Filter recommendations by category
@@ -379,7 +388,6 @@ export default function PublicProfile() {
         <Navigation
           isLoggedIn={!!currentUser}
           onLogin={handleLogin}
-          onLogout={handleLogout}
           onSearch={handleSearch}
           onCreateRec={handleCreateRec}
         />
@@ -394,7 +402,6 @@ export default function PublicProfile() {
         <Navigation
           isLoggedIn={!!currentUser}
           onLogin={handleLogin}
-          onLogout={handleLogout}
           onSearch={handleSearch}
           onCreateRec={handleCreateRec}
         />
@@ -412,7 +419,6 @@ export default function PublicProfile() {
         isLoggedIn={!!currentUser}
         isAdmin={currentUser?.isAdmin || false}
         onLogin={handleLogin}
-        onLogout={handleLogout}
         onSearch={handleSearch}
         onCreateRec={handleCreateRec}
         onAdmin={handleAdmin}
@@ -703,7 +709,7 @@ export default function PublicProfile() {
 
       {/* Edit Profile Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent data-testid="dialog-edit-profile">
+        <DialogContent className="max-h-[90vh] overflow-y-auto" data-testid="dialog-edit-profile">
           <DialogHeader>
             <DialogTitle>Edit Profile</DialogTitle>
             <DialogDescription>
@@ -808,13 +814,13 @@ export default function PublicProfile() {
                             : avatarUrl;
                           
                           return (
-                            <div className="border-4 border-foreground rounded-md p-6 bg-card space-y-4">
-                              <div className="text-sm font-medium mb-3">Avatar Preview</div>
+                            <div className="border-4 border-foreground rounded-md p-4 bg-card space-y-3">
+                              <div className="text-sm font-medium">Avatar Preview</div>
                               
-                              {/* Large circular preview showing how it will appear */}
-                              <div className="flex flex-col items-center gap-4">
-                                <div className="relative">
-                                  <div className="w-40 h-40 rounded-full border-4 border-foreground overflow-hidden bg-muted">
+                              {/* Circular preview showing how it will appear */}
+                              <div className="flex items-center gap-4">
+                                <div className="relative flex-shrink-0">
+                                  <div className="w-24 h-24 rounded-full border-4 border-foreground overflow-hidden bg-muted">
                                     <img 
                                       src={displayUrl}
                                       alt="Avatar preview" 
@@ -822,30 +828,25 @@ export default function PublicProfile() {
                                       style={{ objectPosition: 'center' }}
                                     />
                                   </div>
-                                  <div className="absolute -bottom-2 -right-2 bg-card border-2 border-foreground rounded-full px-3 py-1">
-                                    <span className="text-xs font-medium">Preview</span>
-                                  </div>
                                 </div>
                                 
-                                <div className="text-center text-sm text-muted-foreground max-w-md">
-                                  This is how your avatar will appear on your profile. The image is cropped to a circle.
+                                <div className="flex-1">
+                                  <p className="text-sm text-muted-foreground mb-3">
+                                    This is how your avatar will appear on your profile.
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      field.onChange('');
+                                      setUploadedAvatarUrl(null);
+                                    }}
+                                    data-testid="button-remove-avatar"
+                                  >
+                                    Remove
+                                  </Button>
                                 </div>
-                              </div>
-
-                              {/* Action buttons */}
-                              <div className="flex gap-3 justify-center pt-2">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    field.onChange('');
-                                    setUploadedAvatarUrl(null);
-                                  }}
-                                  data-testid="button-remove-avatar"
-                                >
-                                  Remove
-                                </Button>
                               </div>
                             </div>
                           );

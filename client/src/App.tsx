@@ -14,11 +14,17 @@ import Activity from "@/pages/Activity";
 import CreateRecommendation from "@/pages/CreateRecommendation";
 import RecommendationDetail from "@/pages/RecommendationDetail";
 import CuratorRecs from "@/pages/CuratorRecs";
+import Register from "@/pages/Register";
+import Login from "@/pages/Login";
+import VerifyEmail from "@/pages/VerifyEmail";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/register" component={Register} />
+      <Route path="/login" component={Login} />
+      <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/explore" component={Explore} />
       <Route path="/map" component={ExploreMap} />
       <Route path="/activity" component={Activity} />

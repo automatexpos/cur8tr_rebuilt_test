@@ -1,7 +1,8 @@
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./auth";
+import { setupAuth, isAuthenticated, hashPassword } from "./auth";
+import passport from "passport";
 import { 
   insertRecommendationSchema, 
   updateProfileSchema, 
@@ -9,14 +10,22 @@ import {
   insertCommentSchema,
   insertAdminRecommendSchema,
   insertSectionSchema,
+  registerUserSchema,
+  loginUserSchema,
+  verifyEmailSchema,
+  resendCodeSchema,
 } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { emailService } from "./email";
+import { db } from "./db";
+import { users } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 // Admin middleware
 const isAdmin: RequestHandler = async (req: any, res, next) => {
   try {
-    const userId = req.user?.claims?.sub;
+    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -37,9 +46,221 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
   // ===== AUTH ROUTES =====
+  
+  // Register new user
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const result = registerUserSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: fromError(result.error).toString(),
+        });
+      }
+
+      const { email, password, username } = result.data;
+
+      // Check if user already exists
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+
+      // Check if username is taken
+      const [existingUsername] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, username))
+        .limit(1);
+
+      if (existingUsername) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+
+      // Hash password
+      const hashedPassword = await hashPassword(password);
+
+      // Generate verification code
+      const verificationCode = emailService.generateVerificationCode();
+      const verificationCodeExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Create user
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          email,
+          password: hashedPassword,
+          username,
+          emailVerified: false,
+          verificationCode,
+          verificationCodeExpiry,
+        })
+        .returning();
+
+      // Send verification email
+      await emailService.sendVerificationCode(email, verificationCode);
+
+      res.json({
+        message: "Registration successful. Please check your email for verification code.",
+        email: newUser.email,
+      });
+    } catch (error) {
+      console.error("Error during registration:", error);
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  // Verify email with code
+  app.post('/api/auth/verify-email', async (req, res) => {
+    try {
+      const result = verifyEmailSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: fromError(result.error).toString(),
+        });
+      }
+
+      const { email, code } = result.data;
+
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.emailVerified) {
+        return res.status(400).json({ message: "Email already verified" });
+      }
+
+      if (!user.verificationCode || !user.verificationCodeExpiry) {
+        return res.status(400).json({ message: "No verification code found" });
+      }
+
+      if (new Date() > user.verificationCodeExpiry) {
+        return res.status(400).json({ message: "Verification code expired" });
+      }
+
+      if (user.verificationCode !== code) {
+        return res.status(400).json({ message: "Invalid verification code" });
+      }
+
+      // Mark email as verified
+      await db
+        .update(users)
+        .set({
+          emailVerified: true,
+          verificationCode: null,
+          verificationCodeExpiry: null,
+        })
+        .where(eq(users.id, user.id));
+
+      res.json({ message: "Email verified successfully. You can now log in." });
+    } catch (error) {
+      console.error("Error during email verification:", error);
+      res.status(500).json({ message: "Verification failed" });
+    }
+  });
+
+  // Resend verification code
+  app.post('/api/auth/resend-code', async (req, res) => {
+    try {
+      const result = resendCodeSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: fromError(result.error).toString(),
+        });
+      }
+
+      const { email } = result.data;
+
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.emailVerified) {
+        return res.status(400).json({ message: "Email already verified" });
+      }
+
+      // Generate new verification code
+      const verificationCode = emailService.generateVerificationCode();
+      const verificationCodeExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+      await db
+        .update(users)
+        .set({
+          verificationCode,
+          verificationCodeExpiry,
+        })
+        .where(eq(users.id, user.id));
+
+      // Send new verification email
+      await emailService.sendVerificationCode(email, verificationCode);
+
+      res.json({ message: "Verification code resent" });
+    } catch (error) {
+      console.error("Error resending verification code:", error);
+      res.status(500).json({ message: "Failed to resend code" });
+    }
+  });
+
+  // Login
+  app.post('/api/auth/login', (req, res, next) => {
+    const result = loginUserSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({
+        message: "Validation error",
+        errors: fromError(result.error).toString(),
+      });
+    }
+
+    passport.authenticate('local', (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ message: "Login failed" });
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || "Invalid credentials" });
+      }
+
+      req.logIn(user, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Login failed" });
+        }
+        return res.json({ message: "Login successful", user });
+      });
+    })(req, res, next);
+  });
+
+  // Logout
+  app.post('/api/auth/logout', (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ message: "Logout successful" });
+    });
+  });
+
+  // Get current user
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -56,21 +277,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== USER PROFILE ROUTES =====
   app.patch('/api/user/profile', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      console.log('[PATCH /api/user/profile] Request received:', JSON.stringify(req.body));
+      const userId = req.user.id;
       
       // Validate request body
       const result = updateProfileSchema.safeParse(req.body);
       if (!result.success) {
+        console.log('[PATCH /api/user/profile] Validation failed:', result.error);
         return res.status(400).json({ 
           message: "Validation error", 
           errors: fromError(result.error).toString() 
         });
       }
       
+      console.log('[PATCH /api/user/profile] Updating user profile...');
       const user = await storage.updateUserProfile(userId, result.data);
+      console.log('[PATCH /api/user/profile] Profile updated successfully');
       res.json(user);
     } catch (error) {
-      console.error("Error updating profile:", error);
+      console.error("[PATCH /api/user/profile] Error updating profile:", error);
       res.status(500).json({ message: "Failed to update profile" });
     }
   });
@@ -127,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ error: "imageURL is required" });
     }
 
-    const userId = req.user.claims.sub;
+    const userId = req.user.id;
 
     try {
       const objectStorageService = new ObjectStorageService();
@@ -187,7 +412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/categories', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Validate request body
       const result = createCategorySchema.safeParse(req.body);
@@ -208,7 +433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/categories/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       await storage.deleteCategory(userId, req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -222,14 +447,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== RECOMMENDATION ROUTES =====
-  app.get('/api/recommendations', async (req, res) => {
+  app.get('/api/recommendations', async (req: any, res) => {
     try {
       const { userId, categoryId, hasProTip, limit } = req.query;
+      const currentUserId = req.user?.claims?.sub; // Get current user if authenticated
       const recs = await storage.getRecommendations({
         userId: userId as string | undefined,
         categoryId: categoryId as string | undefined,
         hasProTip: hasProTip === 'true' ? true : hasProTip === 'false' ? false : undefined,
         limit: limit ? parseInt(limit as string) : undefined,
+        currentUserId, // Pass current user for visibility filtering
       });
       
       // Fetch like counts for all recommendations
@@ -248,10 +475,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/map/search', async (req, res) => {
+  app.get('/api/map/search', async (req: any, res) => {
     try {
       const { geocodeLocation } = await import('./utils/distance.js');
       const { location, lat, lng, radius } = req.query;
+      const currentUserId = req.user?.claims?.sub; // Get current user if authenticated
       
       // Default radius is 50 miles
       const radiusMiles = radius ? parseFloat(radius as string) : 50;
@@ -278,7 +506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get recommendations within radius
-      const recs = await storage.getRecommendationsInRadius(latitude, longitude, radiusMiles);
+      const recs = await storage.getRecommendationsInRadius(latitude, longitude, radiusMiles, currentUserId);
       
       // Fetch like counts for all recommendations
       const likeCounts = await storage.getLikeCounts(recs.map(r => r.id));
@@ -336,11 +564,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/recommendations/:id', async (req, res) => {
+  app.get('/api/recommendations/:id', async (req: any, res) => {
     try {
       const rec = await storage.getRecommendation(req.params.id);
       if (!rec) {
         return res.status(404).json({ message: "Recommendation not found" });
+      }
+      
+      // Visibility check: if private, only owner can access
+      if (rec.isPrivate) {
+        const currentUserId = req.user?.claims?.sub;
+        if (!currentUserId || currentUserId !== rec.userId) {
+          // Return 404 instead of 403 to not leak existence of private recommendations
+          return res.status(404).json({ message: "Recommendation not found" });
+        }
       }
       
       // Fetch user info
@@ -375,7 +612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/recommendations', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Validate request body
       const result = insertRecommendationSchema.safeParse(req.body);
@@ -398,7 +635,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/recommendations/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
+      
+      // Verify ownership
+      const existing = await storage.getRecommendation(req.params.id);
+      if (!existing || existing.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized to update this recommendation" });
+      }
       
       // Validate request body (partial update)
       const result = insertRecommendationSchema.partial().safeParse(req.body);
@@ -426,7 +669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/recommendations/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       await storage.deleteRecommendationForUser(userId, req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -452,7 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/comments', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Validate request body
       const result = insertCommentSchema.safeParse(req.body);
@@ -474,7 +717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== SOCIAL ROUTES =====
   app.post('/api/follow/:userId', isAuthenticated, async (req: any, res) => {
     try {
-      const followerId = req.user.claims.sub;
+      const followerId = req.user.id;
       const followingId = req.params.userId;
       
       const follow = await storage.followUser(followerId, followingId);
@@ -487,7 +730,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/follow/:userId', isAuthenticated, async (req: any, res) => {
     try {
-      const followerId = req.user.claims.sub;
+      const followerId = req.user.id;
       const followingId = req.params.userId;
       
       await storage.unfollowUser(followerId, followingId);
@@ -500,7 +743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/like/:recommendationId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const recommendationId = req.params.recommendationId;
       
       const like = await storage.likeRecommendation(userId, recommendationId);
@@ -513,7 +756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/like/:recommendationId', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const recommendationId = req.params.recommendationId;
       
       await storage.unlikeRecommendation(userId, recommendationId);
@@ -531,7 +774,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
       
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const likes = await storage.getUserLikes(userId);
       res.json(likes);
     } catch (error) {
@@ -574,7 +817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/curator-recs/:recommendationId', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const curatorId = req.user.claims.sub;
+      const curatorId = req.user.id;
       const recommendationId = req.params.recommendationId;
       
       const rec = await storage.addCuratorRec(recommendationId, curatorId);
@@ -622,7 +865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin-recommends', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Validate request body
       const result = insertAdminRecommendSchema.safeParse(req.body);
@@ -716,7 +959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/sections', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Validate request body
       const result = insertSectionSchema.safeParse(req.body);

@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { logout } from "@/lib/authUtils";
 import Navigation from "@/components/Navigation";
 import { AdminCuratorRecsManager } from "@/components/AdminCuratorRecsManager";
 import { SectionManager } from "@/components/SectionManager";
@@ -35,10 +34,6 @@ export default function Dashboard() {
 
   const handleLogin = () => {
     window.location.href = '/api/login';
-  };
-
-  const handleLogout = () => {
-    logout();
   };
 
   const handleSearch = () => {
@@ -88,7 +83,6 @@ export default function Dashboard() {
         isLoggedIn={true}
         isAdmin={user.isAdmin}
         onLogin={handleLogin}
-        onLogout={handleLogout}
         onSearch={handleSearch}
         onCreateRec={handleCreateRec}
         onAdmin={handleAdmin}

@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Star, LayoutGrid } from "lucide-react";
 import Navigation from "@/components/Navigation";
-import { logout } from "@/lib/authUtils";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import RecommendationCard from "@/components/RecommendationCard";
@@ -31,10 +30,6 @@ export default function CuratorRecs() {
 
   const handleLogin = () => {
     window.location.href = '/api/login';
-  };
-
-  const handleLogout = () => {
-    logout();
   };
 
   const handleSearch = () => {
@@ -76,7 +71,6 @@ export default function CuratorRecs() {
         isLoggedIn={!!user}
         isAdmin={user?.isAdmin || false}
         onLogin={handleLogin}
-        onLogout={handleLogout}
         onSearch={handleSearch}
         onCreateRec={handleCreateRec}
         onProfile={handleProfile}

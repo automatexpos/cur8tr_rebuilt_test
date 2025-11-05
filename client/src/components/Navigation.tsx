@@ -1,6 +1,7 @@
-import { Search, Plus, User, Menu, X, LogOut } from "lucide-react";
+import { Search, Plus, User, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { Link } from "wouter";
 
 interface NavigationProps {
   isLoggedIn?: boolean;
@@ -11,7 +12,6 @@ interface NavigationProps {
   onProfile?: () => void;
   onLogin?: () => void;
   onAdmin?: () => void;
-  onLogout?: () => void;
 }
 
 export default function Navigation({
@@ -22,8 +22,7 @@ export default function Navigation({
   onSearch,
   onProfile,
   onLogin,
-  onAdmin,
-  onLogout
+  onAdmin
 }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -92,24 +91,44 @@ export default function Navigation({
                   Create Rec
                 </Button>
                 <Button
-                  onClick={onLogout}
-                  variant="ghost"
-                  size="icon"
-                  className="border-2"
-                  title="Logout"
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/auth/logout', {
+                        method: 'POST',
+                        credentials: 'include',
+                      });
+                      if (response.ok) {
+                        window.location.href = '/';
+                      }
+                    } catch (error) {
+                      console.error('Logout failed:', error);
+                    }
+                  }}
+                  variant="outline"
+                  className="border-2 font-medium"
                   data-testid="button-logout"
                 >
-                  <LogOut className="w-4 h-4" />
+                  Logout
                 </Button>
               </>
             ) : (
-              <Button
-                asChild
-                className="border-4 font-bold"
-                data-testid="button-login"
-              >
-                <a href="/api/login">Sign In</a>
-              </Button>
+              <>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="border-2 font-medium"
+                  data-testid="button-login"
+                >
+                  <Link href="/login">Sign In</Link>
+                </Button>
+                <Button
+                  asChild
+                  className="border-4 font-bold"
+                  data-testid="button-register"
+                >
+                  <Link href="/register">Sign Up</Link>
+                </Button>
+              </>
             )}
           </div>
 
@@ -154,15 +173,36 @@ export default function Navigation({
                     <Plus className="w-4 h-4 mr-2" />
                     Create Rec
                   </Button>
-                  <Button onClick={onLogout} variant="outline" className="w-full border-2 font-bold" data-testid="button-mobile-logout">
-                    <LogOut className="w-4 h-4 mr-2" />
+                  <Button
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('/api/auth/logout', {
+                          method: 'POST',
+                          credentials: 'include',
+                        });
+                        if (response.ok) {
+                          window.location.href = '/';
+                        }
+                      } catch (error) {
+                        console.error('Logout failed:', error);
+                      }
+                    }}
+                    variant="outline"
+                    className="w-full border-2 font-medium"
+                    data-testid="button-mobile-logout"
+                  >
                     Logout
                   </Button>
                 </>
               ) : (
-                <Button asChild className="w-full mt-2" data-testid="button-mobile-login">
-                  <a href="/api/login">Sign In</a>
-                </Button>
+                <>
+                  <Button asChild variant="outline" className="w-full mt-2 border-2 font-medium" data-testid="button-mobile-login">
+                    <Link href="/login">Sign In</Link>
+                  </Button>
+                  <Button asChild className="w-full border-4 font-bold" data-testid="button-mobile-register">
+                    <Link href="/register">Sign Up</Link>
+                  </Button>
+                </>
               )}
             </div>
           </div>

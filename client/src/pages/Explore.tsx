@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Search, SlidersHorizontal, X } from "lucide-react";
-import { logout } from "@/lib/authUtils";
 import Navigation from "@/components/Navigation";
 import RecommendationCard from "@/components/RecommendationCard";
 import { Input } from "@/components/ui/input";
@@ -81,10 +80,6 @@ export default function Explore() {
     window.location.href = '/api/login';
   };
 
-  const handleLogout = () => {
-    logout();
-  };
-
   const handleSearch = () => {
     navigate('/explore');
   };
@@ -134,7 +129,6 @@ export default function Explore() {
         isLoggedIn={!!user}
         isAdmin={user?.isAdmin || false}
         onLogin={handleLogin}
-        onLogout={handleLogout}
         onSearch={handleSearch}
         onProfile={handleProfile}
         onCreateRec={handleCreateRec}
