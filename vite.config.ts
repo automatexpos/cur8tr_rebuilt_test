@@ -15,7 +15,7 @@ export default defineConfig({
   },
   root: "client",
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: "../dist/public",
     emptyOutDir: true,
     sourcemap: false,
     minify: 'terser',
