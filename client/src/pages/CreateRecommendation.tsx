@@ -27,8 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { insertRecommendationSchema, createCategorySchema, type Category, type InsertRecommendation } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
-import { ObjectUploader } from "@/components/ObjectUploader";
-import type { UploadResult } from "@uppy/core";
+import { ImageUploader } from "@/components/ImageUploader";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
@@ -36,8 +35,6 @@ export default function CreateRecommendation() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [rating, setRating] = useState(0);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [categoryMode, setCategoryMode] = useState<'existing' | 'new'>('existing');
   const [newCategoryName, setNewCategoryName] = useState('');
 
@@ -305,33 +302,29 @@ export default function CreateRecommendation() {
                     <FormLabel className="text-lg font-bold">Image*</FormLabel>
                     <FormControl>
                       <div className="space-y-4">
-                        {uploadedImageUrl ? (
+                        <ImageUploader
+                          onImageSelect={(base64) => {
+                            field.onChange(base64);
+                          }}
+                          currentImage={field.value}
+                          onRemove={() => {
+                            field.onChange('');
+                          }}
+                          maxSizeMB={5}
+                          buttonText="Choose Image"
+                          variant="outline"
+                        />
+                        
+                        {field.value && (
                           <div className="border-4 border-foreground rounded-md p-6 bg-card space-y-4">
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="text-sm font-medium">Image Preview</span>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  field.onChange(null);
-                                  setUploadedImageUrl(null);
-                                }}
-                                data-testid="button-remove-image"
-                              >
-                                Remove
-                              </Button>
-                            </div>
+                            <div className="text-sm font-medium mb-3">Image Preview</div>
                             
                             {/* Preview showing 3:4 aspect ratio as it will appear on cards */}
                             <div className="max-w-xs mx-auto">
                               <div className="border-4 border-foreground overflow-hidden">
                                 <div className="relative aspect-[3/4]">
                                   <img 
-                                    src={uploadedImageUrl.startsWith('/objects/') 
-                                      ? `/api${uploadedImageUrl}` 
-                                      : uploadedImageUrl
-                                    }
+                                    src={field.value}
                                     alt="Recommendation preview" 
                                     className="w-full h-full object-cover"
                                   />
@@ -344,55 +337,11 @@ export default function CreateRecommendation() {
                               This is how your image will appear on recommendation cards. Images are displayed in a 3:4 portrait aspect ratio.
                             </div>
                           </div>
-                        ) : (
-                          <ObjectUploader
-                            maxNumberOfFiles={1}
-                            maxFileSize={10485760}
-                            onGetUploadParameters={async () => {
-                              const response = await apiRequest('POST', '/api/objects/upload', {});
-                              const data: any = await response.json();
-                              return {
-                                method: 'PUT' as const,
-                                url: data.uploadURL,
-                              };
-                            }}
-                            onComplete={async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-                              if (result.successful && result.successful.length > 0) {
-                                setIsUploading(true);
-                                const uploadedUrl = result.successful[0].uploadURL;
-                                try {
-                                  const response = await apiRequest('PUT', '/api/recommendation-images', {
-                                    imageURL: uploadedUrl,
-                                  });
-                                  const data: any = await response.json();
-                                  setUploadedImageUrl(data.objectPath);
-                                  field.onChange(data.objectPath);
-                                  toast({
-                                    title: "Success",
-                                    description: "Image uploaded successfully!",
-                                  });
-                                } catch (error) {
-                                  console.error("Error setting image ACL:", error);
-                                  toast({
-                                    variant: "destructive",
-                                    title: "Error",
-                                    description: "Failed to save image",
-                                  });
-                                } finally {
-                                  setIsUploading(false);
-                                }
-                              }
-                            }}
-                            variant="outline"
-                          >
-                            <Upload className="w-4 h-4 mr-2" />
-                            Upload Image
-                          </ObjectUploader>
                         )}
                       </div>
                     </FormControl>
                     <FormDescription>
-                      Upload an image for your recommendation (max 10MB)
+                      Upload an image for your recommendation (max 5MB)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

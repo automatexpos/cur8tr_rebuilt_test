@@ -26,8 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { insertAdminRecommendSchema, type AdminRecommend, type InsertAdminRecommend, type Section } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
-import { ObjectUploader } from "@/components/ObjectUploader";
-import type { UploadResult } from "@uppy/core";
+import { ImageUploader } from "@/components/ImageUploader";
 import Navigation from "@/components/Navigation";
 import { useLocation } from "wouter";
 import { SubtitleEditor } from "@/components/SubtitleEditor";
@@ -35,8 +34,6 @@ import { SubtitleEditor } from "@/components/SubtitleEditor";
 export default function AdminDashboard() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const { data: user } = useQuery<{ isAdmin: boolean }>({
@@ -76,7 +73,6 @@ export default function AdminDashboard() {
         description: "CUR8tr Recommend created successfully!",
       });
       form.reset();
-      setUploadedImageUrl(null);
       setEditingId(null);
     },
     onError: () => {
@@ -100,7 +96,6 @@ export default function AdminDashboard() {
         description: "CUR8tr Recommend updated successfully!",
       });
       form.reset();
-      setUploadedImageUrl(null);
       setEditingId(null);
     },
     onError: () => {
@@ -154,33 +149,6 @@ export default function AdminDashboard() {
     },
   });
 
-  const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    if (result.successful && result.successful.length > 0) {
-      setIsUploading(true);
-      const uploadedUrl = result.successful[0].uploadURL;
-      try {
-        const response = await apiRequest('PUT', '/api/recommendation-images', {
-          imageURL: uploadedUrl,
-        });
-        const data: any = await response.json();
-        setUploadedImageUrl(data.objectPath);
-        form.setValue("imageUrl", data.objectPath);
-        toast({
-          title: "Success",
-          description: "Image uploaded successfully!",
-        });
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to process uploaded image",
-          variant: "destructive",
-        });
-      } finally {
-        setIsUploading(false);
-      }
-    }
-  };
-
   const onSubmit = (data: InsertAdminRecommend) => {
     if (editingId) {
       updateMutation.mutate({ id: editingId, data });
@@ -191,7 +159,6 @@ export default function AdminDashboard() {
 
   const handleEdit = (recommend: AdminRecommend) => {
     setEditingId(recommend.id);
-    setUploadedImageUrl(recommend.imageUrl);
     form.reset({
       title: recommend.title,
       subtitle: recommend.subtitle || "",
@@ -207,7 +174,6 @@ export default function AdminDashboard() {
   const handleCancelEdit = () => {
     setEditingId(null);
     form.reset();
-    setUploadedImageUrl(null);
   };
 
   // Check if user is admin
@@ -317,30 +283,29 @@ export default function AdminDashboard() {
                         <FormLabel>Image</FormLabel>
                         <FormControl>
                           <div className="space-y-4">
-                            {uploadedImageUrl ? (
+                            <ImageUploader
+                              onImageSelect={(base64) => {
+                                field.onChange(base64);
+                              }}
+                              currentImage={field.value}
+                              onRemove={() => {
+                                field.onChange('');
+                              }}
+                              maxSizeMB={5}
+                              buttonText="Choose Image"
+                              variant="outline"
+                            />
+                            
+                            {field.value && (
                               <div className="border-4 border-foreground rounded-md p-6 bg-card space-y-4">
-                                <div className="flex items-center justify-between mb-3">
-                                  <span className="text-sm font-medium">Image Preview</span>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      setUploadedImageUrl(null);
-                                      form.setValue("imageUrl", "");
-                                    }}
-                                    data-testid="button-remove-image"
-                                  >
-                                    Remove
-                                  </Button>
-                                </div>
+                                <div className="text-sm font-medium mb-3">Image Preview</div>
                                 
                                 {/* Preview showing 9:16 aspect ratio as it will appear on landing page */}
                                 <div className="max-w-xs mx-auto">
                                   <div className="border-4 border-foreground overflow-hidden">
                                     <div className="relative aspect-[9/16]">
                                       <img
-                                        src={uploadedImageUrl}
+                                        src={field.value}
                                         alt="CUR8tr Recommends preview"
                                         className="w-full h-full object-cover"
                                         data-testid="img-preview"
@@ -354,30 +319,6 @@ export default function AdminDashboard() {
                                   This is how your card will appear on the landing page. Images are displayed in a 9:16 portrait aspect ratio.
                                 </div>
                               </div>
-                            ) : (
-                              <ObjectUploader
-                                maxNumberOfFiles={1}
-                                maxFileSize={10485760}
-                                onGetUploadParameters={async () => {
-                                  const response = await apiRequest('POST', '/api/objects/upload', {});
-                                  const data: any = await response.json();
-                                  return {
-                                    method: 'PUT' as const,
-                                    url: data.uploadURL,
-                                  };
-                                }}
-                                onComplete={handleUploadComplete}
-                              >
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="border-2"
-                                  data-testid="button-open-uploader"
-                                >
-                                  <Upload className="w-4 h-4 mr-2" />
-                                  Upload Image
-                                </Button>
-                              </ObjectUploader>
                             )}
                           </div>
                         </FormControl>
@@ -498,7 +439,7 @@ export default function AdminDashboard() {
                   <div className="flex gap-4">
                     <Button
                       type="submit"
-                      disabled={isUploading || createMutation.isPending || updateMutation.isPending}
+                      disabled={createMutation.isPending || updateMutation.isPending}
                       className="border-4 font-bold"
                       data-testid="button-submit"
                     >

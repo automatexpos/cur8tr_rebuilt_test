@@ -36,7 +36,7 @@ export const users = pgTable("users", {
   verificationCodeExpiry: timestamp("verification_code_expiry"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
+  profileImageUrl: text("profile_image_url"), // Base64 encoded image data
   username: varchar("username").unique(),
   bio: text("bio"),
   instagramUrl: varchar("instagram_url"),
@@ -342,11 +342,11 @@ export const insertRecommendationSchema = createInsertSchema(recommendations).om
 }).extend({
   tags: z.array(z.string()).optional(),
   proTip: z.string().max(500, "Pro Tip must be 500 characters or less").optional().or(z.literal("")),
-  // Allow both URLs and object storage paths (e.g., /objects/uploads/...)
+  // Allow base64 data URIs or external URLs
   // Optional to allow testing without image upload
   imageUrl: z.string().refine(
-    (val) => val.startsWith('/objects/') || val.startsWith('http://') || val.startsWith('https://'),
-    { message: "Image must be a valid URL or object storage path" }
+    (val) => !val || val.startsWith('data:image/') || val.startsWith('http://') || val.startsWith('https://'),
+    { message: "Image must be a valid base64 data URI or URL" }
   ).optional().or(z.literal("")),
 });
 
@@ -383,8 +383,8 @@ export const updateProfileSchema = z.object({
   username: z.string().min(3).max(50).optional(),
   bio: z.string().max(500).optional(),
   profileImageUrl: z.string().refine(
-    (val) => !val || val.startsWith('/objects/') || val.startsWith('http://') || val.startsWith('https://'),
-    { message: "Avatar must be a valid URL or object storage path" }
+    (val) => !val || val.startsWith('data:image/') || val.startsWith('http://') || val.startsWith('https://'),
+    { message: "Avatar must be a valid base64 data URI or URL" }
   ).optional().or(z.literal('')),
   instagramUrl: z.string().url().optional().or(z.literal('')),
   tiktokUrl: z.string().url().optional().or(z.literal('')),

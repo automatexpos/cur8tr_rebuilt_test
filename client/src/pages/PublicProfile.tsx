@@ -33,8 +33,7 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { User, Recommendation, Category } from "@shared/schema";
 import QRCode from "qrcode";
-import { ObjectUploader } from "@/components/ObjectUploader";
-import type { UploadResult } from "@uppy/core";
+import { ImageUploader } from "@/components/ImageUploader";
 import { Upload, ImageIcon } from "lucide-react";
 
 type UserStats = {
@@ -59,8 +58,6 @@ export default function PublicProfile() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [deleteRecId, setDeleteRecId] = useState<string | null>(null);
   const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
-  const [uploadedAvatarUrl, setUploadedAvatarUrl] = useState<string | null>(null);
-  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const { data: profileUser, isLoading: userLoading, isError: userError } = useQuery<User>({
     queryKey: ['/api/user', username],
@@ -762,95 +759,44 @@ export default function PublicProfile() {
                     <FormLabel>Avatar Image</FormLabel>
                     <FormControl>
                       <div className="space-y-4">
-                        <ObjectUploader
-                          maxNumberOfFiles={1}
-                          maxFileSize={10485760}
-                          onGetUploadParameters={async () => {
-                            const response = await apiRequest('POST', '/api/objects/upload', {});
-                            const data: any = await response.json();
-                            return {
-                              method: 'PUT' as const,
-                              url: data.uploadURL,
-                            };
+                        <ImageUploader
+                          onImageSelect={(base64) => {
+                            field.onChange(base64);
                           }}
-                          onComplete={async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-                            if (result.successful && result.successful.length > 0) {
-                              setIsUploadingAvatar(true);
-                              const uploadedUrl = result.successful[0].uploadURL;
-                              try {
-                                const response = await apiRequest('PUT', '/api/recommendation-images', {
-                                  imageURL: uploadedUrl,
-                                });
-                                const data: any = await response.json();
-                                setUploadedAvatarUrl(data.objectPath);
-                                field.onChange(data.objectPath);
-                                toast({
-                                  title: "Success",
-                                  description: "Avatar uploaded successfully!",
-                                });
-                              } catch (error) {
-                                console.error("Error setting avatar ACL:", error);
-                                toast({
-                                  variant: "destructive",
-                                  title: "Error",
-                                  description: "Failed to save avatar",
-                                });
-                              } finally {
-                                setIsUploadingAvatar(false);
-                              }
-                            }
+                          currentImage={field.value}
+                          onRemove={() => {
+                            field.onChange('');
                           }}
+                          maxSizeMB={5}
+                          buttonText="Choose Avatar"
                           variant="outline"
-                          data-testid="uploader-avatar"
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          {uploadedAvatarUrl || field.value ? "Change Avatar" : "Upload Avatar"}
-                        </ObjectUploader>
+                        />
                         
-                        {(uploadedAvatarUrl || field.value) && (() => {
-                          const avatarUrl = uploadedAvatarUrl || field.value || '';
-                          const displayUrl = avatarUrl.startsWith('/objects/') 
-                            ? `/api${avatarUrl}` 
-                            : avatarUrl;
-                          
-                          return (
-                            <div className="border-4 border-foreground rounded-md p-4 bg-card space-y-3">
-                              <div className="text-sm font-medium">Avatar Preview</div>
-                              
-                              {/* Circular preview showing how it will appear */}
-                              <div className="flex items-center gap-4">
-                                <div className="relative flex-shrink-0">
-                                  <div className="w-24 h-24 rounded-full border-4 border-foreground overflow-hidden bg-muted">
-                                    <img 
-                                      src={displayUrl}
-                                      alt="Avatar preview" 
-                                      className="w-full h-full object-cover"
-                                      style={{ objectPosition: 'center' }}
-                                    />
-                                  </div>
-                                </div>
-                                
-                                <div className="flex-1">
-                                  <p className="text-sm text-muted-foreground mb-3">
-                                    This is how your avatar will appear on your profile.
-                                  </p>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      field.onChange('');
-                                      setUploadedAvatarUrl(null);
-                                    }}
-                                    data-testid="button-remove-avatar"
-                                  >
-                                    Remove
-                                  </Button>
+                        {field.value && (
+                          <div className="border-4 border-foreground rounded-md p-4 bg-card space-y-3">
+                            <div className="text-sm font-medium">Avatar Preview</div>
+                            
+                            {/* Circular preview showing how it will appear */}
+                            <div className="flex items-center gap-4">
+                              <div className="relative flex-shrink-0">
+                                <div className="w-24 h-24 rounded-full border-4 border-foreground overflow-hidden bg-muted">
+                                  <img 
+                                    src={field.value}
+                                    alt="Avatar preview" 
+                                    className="w-full h-full object-cover"
+                                    style={{ objectPosition: 'center' }}
+                                  />
                                 </div>
                               </div>
+                              
+                              <div className="flex-1">
+                                <p className="text-sm text-muted-foreground">
+                                  This is how your avatar will appear on your profile.
+                                </p>
+                              </div>
                             </div>
-                          );
-                        })()}
+                          </div>
+                        )}
                       </div>
                     </FormControl>
                     <FormMessage />
