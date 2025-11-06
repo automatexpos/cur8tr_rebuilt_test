@@ -33,6 +33,7 @@ import { useToast } from "@/hooks/use-toast";
 import { insertRecommendationSchema, type Category, type Recommendation, type InsertRecommendation } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState, useEffect } from "react";
+import { ImageUploader } from "@/components/ImageUploader";
 
 interface EditRecommendationDialogProps {
   recommendation: Recommendation & { category?: Category | null };
@@ -181,6 +182,60 @@ export default function EditRecommendationDialog({
                       data-testid="input-edit-description"
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="imageUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="font-bold">Image</FormLabel>
+                  <FormControl>
+                    <div className="space-y-4">
+                      <ImageUploader
+                        onImageSelect={(base64) => {
+                          field.onChange(base64);
+                        }}
+                        currentImage={field.value}
+                        onRemove={() => {
+                          field.onChange('');
+                        }}
+                        maxSizeMB={5}
+                        buttonText="Choose Image"
+                        variant="outline"
+                      />
+                      
+                      {field.value && (
+                        <div className="border-4 border-foreground rounded-md p-6 bg-card space-y-4">
+                          <div className="text-sm font-medium mb-3">Image Preview</div>
+                          
+                          {/* Preview showing 3:4 aspect ratio as it will appear on cards */}
+                          <div className="max-w-xs mx-auto">
+                            <div className="border-4 border-foreground overflow-hidden">
+                              <div className="relative aspect-[3/4]">
+                                <img 
+                                  src={field.value}
+                                  alt="Recommendation preview" 
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="text-center text-sm text-muted-foreground">
+                            This is how your image will appear on recommendation cards.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </FormControl>
+                  <FormDescription>
+                    Upload or change the recommendation image (max 5MB)
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

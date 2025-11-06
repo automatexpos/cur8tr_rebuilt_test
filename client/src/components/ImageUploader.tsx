@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import imageCompression from 'browser-image-compression';
 
 interface ImageUploaderProps {
   onImageSelect: (base64: string) => void;
@@ -65,11 +66,30 @@ export function ImageUploader({
     }
 
     try {
-      const base64 = await convertToBase64(file);
+      // Compress the image before converting to base64
+      const options = {
+        maxSizeMB: 0.5, // Compress to max 0.5MB
+        maxWidthOrHeight: 1920, // Max dimension
+        useWebWorker: true,
+        fileType: file.type,
+      };
+      
+      toast({
+        title: "Processing...",
+        description: "Compressing image, please wait...",
+      });
+
+      const compressedFile = await imageCompression(file, options);
+      
+      console.log('Original file size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+      console.log('Compressed file size:', (compressedFile.size / 1024 / 1024).toFixed(2), 'MB');
+      
+      const base64 = await convertToBase64(compressedFile);
       onImageSelect(base64);
+      
       toast({
         title: "Success",
-        description: "Image uploaded successfully!",
+        description: `Image uploaded successfully! (${(compressedFile.size / 1024).toFixed(0)}KB)`,
       });
     } catch (error) {
       console.error("Error converting image:", error);
