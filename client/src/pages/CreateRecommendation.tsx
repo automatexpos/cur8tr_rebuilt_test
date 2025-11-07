@@ -110,6 +110,21 @@ export default function CreateRecommendation() {
           return;
         }
 
+        // Check if category already exists (case-insensitive)
+        const normalizedName = newCategoryName.trim().toLowerCase();
+        const existingCategory = categories.find(
+          cat => cat.name.toLowerCase() === normalizedName
+        );
+        
+        if (existingCategory) {
+          toast({
+            variant: "destructive",
+            title: "Category already exists",
+            description: `The category "${existingCategory.name}" already exists. Please select it from the existing categories or choose a different name.`,
+          });
+          return;
+        }
+
         const response = await createCategoryMutation.mutateAsync(newCategoryName.trim());
         const newCategory = await (response as Response).json() as Category;
         categoryId = newCategory.id;

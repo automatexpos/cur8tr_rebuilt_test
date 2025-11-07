@@ -411,7 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== CATEGORY ROUTES =====
   app.get('/api/categories', async (req: any, res) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const userId = req.user?.id;
       const categories = await storage.getCategories(userId);
       res.json(categories);
     } catch (error) {

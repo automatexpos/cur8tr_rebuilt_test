@@ -43,11 +43,11 @@ export default function Landing() {
   });
 
   const handleLogin = () => {
-    window.location.href = '/api/login';
+    navigate('/login');
   };
 
   const handleSignUp = () => {
-    window.location.href = '/api/login';
+    navigate('/register');
   };
 
   const handleExplore = () => {
