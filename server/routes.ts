@@ -19,7 +19,7 @@ import { fromError } from "zod-validation-error";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { emailService } from "./email";
 import { db } from "./db";
-import { users } from "@shared/schema";
+import { users, follows } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 // Admin middleware
@@ -725,6 +725,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===== SOCIAL ROUTES =====
+  // Get current user's follows
+  app.get('/api/follows', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      // Get list of users that the current user is following
+      const userFollows = await db.select().from(follows).where(eq(follows.followerId, userId));
+      res.json(userFollows);
+    } catch (error) {
+      console.error("Error fetching follows:", error);
+      res.status(500).json({ message: "Failed to fetch follows" });
+    }
+  });
+
   app.post('/api/follow/:userId', isAuthenticated, async (req: any, res) => {
     try {
       const followerId = req.user.id;
@@ -739,6 +752,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.delete('/api/follow/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const followerId = req.user.id;
+      const followingId = req.params.userId;
+      
+      await storage.unfollowUser(followerId, followingId);
+      res.json({ message: "Unfollowed" });
+    } catch (error) {
+      console.error("Error unfollowing user:", error);
+      res.status(500).json({ message: "Failed to unfollow user" });
+    }
+  });
+
+  // Alternative POST route for unfollow (for compatibility)
+  app.post('/api/unfollow/:userId', isAuthenticated, async (req: any, res) => {
     try {
       const followerId = req.user.id;
       const followingId = req.params.userId;
