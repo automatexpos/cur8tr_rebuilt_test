@@ -242,14 +242,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     passport.authenticate('local', (err: any, user: any, info: any) => {
       if (err) {
+        console.error("Login authentication error:", err);
         return res.status(500).json({ message: "Login failed" });
       }
       if (!user) {
         return res.status(401).json({ message: info?.message || "Invalid credentials" });
       }
 
-      req.logIn(user, (err) => {
-        if (err) {
+      req.logIn(user, (loginErr) => {
+        if (loginErr) {
+          console.error("Login session error:", loginErr);
           return res.status(500).json({ message: "Login failed" });
         }
         return res.json({ message: "Login successful", user });
